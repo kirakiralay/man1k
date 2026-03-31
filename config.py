@@ -42,3 +42,6 @@ GOOGLE_WORKSHEET_NAME = os.getenv("GOOGLE_WORKSHEET_NAME", "Sheet1")
 # Event settings
 REMINDER_DURATION_MINUTES = int(os.getenv("REMINDER_DURATION_MINUTES", "60"))
 
+# Public base URL for webcal / HTTP access (например https://man1k-production.up.railway.app)
+PUBLIC_BASE_URL = _require_env("PUBLIC_BASE_URL")
+

@@ -1,9 +1,9 @@
 import asyncio
 import os
-import tempfile
 from datetime import date
+from urllib.parse import quote_plus
 
-import aiohttp
+from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -11,13 +11,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import FSInputFile, KeyboardButton, Message, ReplyKeyboardMarkup
 
-from config import (
-    BOT_TOKEN,
-    GOOGLE_SERVICE_ACCOUNT_INFO,
-    GOOGLE_SPREADSHEET_ID,
-    GOOGLE_WORKSHEET_NAME,
-    REMINDER_DURATION_MINUTES,
-)
+from config import BOT_TOKEN, GOOGLE_SERVICE_ACCOUNT_INFO, GOOGLE_SPREADSHEET_ID, GOOGLE_WORKSHEET_NAME, PUBLIC_BASE_URL, REMINDER_DURATION_MINUTES
 from calendar_ics import create_ics_text
 from google_sheets import append_reminder_to_google_sheets
 from keyboards import (
@@ -45,35 +39,26 @@ CREATE_BUTTON = ReplyKeyboardMarkup(
     resize_keyboard=True,
 )
 
-
-async def send_document_with_mime_type(
-    *,
-    chat_id: int,
-    document_path: str,
-    caption: str,
-    mime_type: str,
-) -> None:
+async def handle_calendar_http(request: web.Request) -> web.Response:
     """
-    Aiogram не прокидывает параметр `mime_type` в sendDocument напрямую.
-    Поэтому делаем raw-вызов Telegram Bot API, чтобы iOS корректно
-    распознала MIME как text/calendar.
+    HTTP-эндпоинт /cal, который отдаёт .ics событие.
+    На него будем указывать в webcal:// ссылке.
     """
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
-    filename = os.path.basename(document_path)
+    style = request.query.get("style", "Маникюр")
+    date_iso = request.query.get("date")
+    time_hhmm = request.query.get("time")
+    duration_qs = request.query.get("dur")
 
-    form = aiohttp.FormData()
-    form.add_field("chat_id", str(chat_id))
-    if caption:
-        form.add_field("caption", caption)
-    form.add_field("mime_type", mime_type)
+    if not date_iso or not time_hhmm:
+        return web.Response(status=400, text="Missing required query params: date, time")
 
-    with open(document_path, "rb") as f:
-        form.add_field("document", f, filename=filename, content_type=mime_type)
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, data=form) as resp:
-                payload = await resp.json(content_type=None)
-                if not payload.get("ok"):
-                    raise RuntimeError(payload.get("description") or "Telegram sendDocument failed")
+    try:
+        duration = int(duration_qs) if duration_qs is not None else REMINDER_DURATION_MINUTES
+    except ValueError:
+        duration = REMINDER_DURATION_MINUTES
+
+    ics_text = create_ics_text(style=style, date_iso=date_iso, time_hhmm=time_hhmm, duration_minutes=duration)
+    return web.Response(text=ics_text, content_type="text/calendar; charset=utf-8")
 
 
 @dp.message(CommandStart())
@@ -223,7 +208,6 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
 
     await callback_query.answer("Сохраняю…")
 
-    tmp_path = None
     success = False
     try:
         # 1) Save to Google Sheets
@@ -236,46 +220,29 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
             time_hhmm=time_hhmm,
         )
 
-        # 2) Create an .ics and send it to user.
-        ics_text = create_ics_text(
-            style=style,
-            date_iso=date_iso,
-            time_hhmm=time_hhmm,
-            duration_minutes=REMINDER_DURATION_MINUTES,
+        # 2) Сформировать webcal-ссылку на HTTP-эндпоинт /cal.
+        base_http = PUBLIC_BASE_URL.rstrip("/")
+        base_webcal = (
+            base_http.replace("https://", "webcal://")
+            .replace("http://", "webcal://")
+            .rstrip("/")
         )
-        tmp_dir = tempfile.gettempdir()
-        filename = f"manicure_reminder_{callback_query.from_user.id}_{date_iso}_{time_hhmm.replace(':', '')}.ics"
-        tmp_path = os.path.join(tmp_dir, filename)
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            f.write(ics_text)
+        qs_style = quote_plus(style)
+        qs = f"style={qs_style}&date={date_iso}&time={time_hhmm}&dur={REMINDER_DURATION_MINUTES}"
+        webcal_url = f"{base_webcal}/cal?{qs}"
 
-        await send_document_with_mime_type(
-            chat_id=callback_query.message.chat.id,
-            document_path=tmp_path,
-            caption=(
-                "Готово! Я сохранил запись в Google Sheets и сформировал событие для календаря.\n"
-                "Откройте вложение с расширением .ics и выберите «Добавить в календарь» (импорт на устройстве)."
-            ),
-            mime_type="text/calendar",
+        await callback_query.message.answer(
+            "Готово! Я сохранил запись в Google Sheets.\n"
+            "Чтобы добавить напоминание в календарь на устройстве:\n"
+            f"— откройте ссылку: {webcal_url}\n"
+            "— подтвердите добавление события/подписки в календаре.",
         )
         success = True
-        await callback_query.message.answer(
-            "Если не появилось сразу: попробуйте открыть файл заново или импортировать вручную. "
-            "Команду /new можно использовать для следующей записи."
-        )
     except Exception as e:
         await callback_query.message.answer(
             f"Не удалось создать запись: {e}\n"
             "Проверьте настройки Google Sheets и перезапустите бота, если проблема повторяется."
         )
-    finally:
-        try:
-            # tmp_path может не существовать при ошибках до его создания.
-            if tmp_path and os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except OSError:
-            pass
-
     await state.clear()
     if success:
         await callback_query.message.answer(
@@ -292,10 +259,21 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
 async def main() -> None:
     bot = Bot(token=BOT_TOKEN)
     dp.startup.register(lambda *_: None)
+
+    # Поднимаем aiohttp-сервер для /cal (iOS/Android будут ходить по webcal/http).
+    app = web.Application()
+    app.router.add_get("/cal", handle_calendar_http)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
+    await site.start()
+
     try:
         await dp.start_polling(bot)
     finally:
         await bot.session.close()
+        await runner.cleanup()
 
 
 if __name__ == "__main__":
