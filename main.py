@@ -57,7 +57,17 @@ async def handle_calendar_http(request: web.Request) -> web.Response:
     except ValueError:
         duration = REMINDER_DURATION_MINUTES
 
-    ics_text = create_ics_text(style=style, date_iso=date_iso, time_hhmm=time_hhmm, duration_minutes=duration)
+    try:
+        ics_text = create_ics_text(
+            style=style,
+            date_iso=date_iso,
+            time_hhmm=time_hhmm,
+            duration_minutes=duration,
+        )
+    except Exception as e:
+        # Вернём понятную ошибку в ответ, чтобы было видно причину 500.
+        return web.Response(status=500, text=f"Failed to create calendar event: {e}")
+
     return web.Response(text=ics_text, content_type="text/calendar; charset=utf-8")
 
 
@@ -228,7 +238,9 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
             .rstrip("/")
         )
         qs_style = quote_plus(style)
-        qs = f"style={qs_style}&date={date_iso}&time={time_hhmm}&dur={REMINDER_DURATION_MINUTES}"
+        qs_date = quote_plus(date_iso)
+        qs_time = quote_plus(time_hhmm)
+        qs = f"style={qs_style}&date={qs_date}&time={qs_time}&dur={REMINDER_DURATION_MINUTES}"
         webcal_url = f"{base_webcal}/cal?{qs}"
 
         await callback_query.message.answer(
