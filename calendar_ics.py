@@ -50,6 +50,9 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
             f"DTEND:{dtend}",
             f"SUMMARY:{_escape_ics_text(summary)}",
             f"DESCRIPTION:{_escape_ics_text(description)}",
+            "STATUS:CONFIRMED",
+            "SEQUENCE:0",
+            "TRANSP:OPAQUE",
             "END:VEVENT",
             "END:VCALENDAR",
         ]

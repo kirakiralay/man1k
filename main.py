@@ -218,12 +218,14 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(ics_text)
 
-        await callback_query.message.answer_document(
-            FSInputFile(tmp_path),
+        await callback_query.bot.send_document(
+            chat_id=callback_query.message.chat.id,
+            document=FSInputFile(tmp_path),
             caption=(
                 "Готово! Я сохранил запись в Google Sheets и сформировал событие для календаря.\n"
                 "Откройте вложение с расширением .ics и выберите «Добавить в календарь» (импорт на устройстве)."
             ),
+            mime_type="text/calendar",
         )
         success = True
         await callback_query.message.answer(
