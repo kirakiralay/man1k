@@ -78,11 +78,14 @@ def build_calendar_keyboard(*, start_date: date, end_date: date) -> InlineKeyboa
 
 def build_time_slots_keyboard() -> InlineKeyboardMarkup:
     # Slots: 10:00 .. 23:00 each hour.
-    values = [f"{h:02d}:00" for h in range(10, 24)]
+    # В callback data нельзя использовать ':', поэтому храним "1000", "1100", ...
+    values = [f"{h:02d}00" for h in range(10, 24)]
     rows: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
     for i, v in enumerate(values, start=1):
-        row.append(InlineKeyboardButton(text=v, callback_data=TimeSlotCallback(value=v).pack()))
+        # Текст для пользователя: 10:00, 11:00, ...
+        label = f"{v[:2]}:{v[2:]}"
+        row.append(InlineKeyboardButton(text=label, callback_data=TimeSlotCallback(value=v).pack()))
         if i % 4 == 0:
             rows.append(row)
             row = []

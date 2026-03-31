@@ -138,7 +138,12 @@ async def handle_time(callback_query, state: FSMContext) -> None:
 
     try:
         parsed = TimeSlotCallback.unpack(callback_query.data)
-        time_hhmm = parsed["value"] if isinstance(parsed, dict) else parsed.value
+        raw = parsed["value"] if isinstance(parsed, dict) else parsed.value
+        # Конвертация "1000" -> "10:00"
+        if isinstance(raw, str) and len(raw) == 4 and raw.isdigit():
+            time_hhmm = f"{raw[:2]}:{raw[2:]}"
+        else:
+            time_hhmm = str(raw)
     except Exception:
         await callback_query.answer("Не удалось распознать время.", show_alert=False)
         return
