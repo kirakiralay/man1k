@@ -25,32 +25,27 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
 
     uid = f"{uuid.uuid4()}@bot1"
     dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    created = dtstamp
-    last_modified = dtstamp
 
     # Floating timestamps: no "Z" suffix and no timezone identifiers.
-    # iOS часто лучше принимает время без секунд.
-    dtstart = start_dt.strftime("%Y%m%dT%H%M")
-    dtend = end_dt.strftime("%Y%m%dT%H%M")
+    # Время с секундами лучше парсится некоторыми клиентами iOS.
+    dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
+    dtend = end_dt.strftime("%Y%m%dT%H%M%S")
 
     summary = f"Маникюр: {style}"
     description = "Напоминание от бота"
 
+    # Максимальная совместимость: минимальный набор свойств для iOS Calendar.
+    # (Лишние поля/структуры иногда мешают iOS правильно предложить "Add to Calendar".)
     return "\r\n".join(
         [
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
-            "PRODID:-//bot1//RU",
+            "PRODID:-//bot1//Manicure Reminder//RU",
             "CALSCALE:GREGORIAN",
-            # Для добавления события на iOS обычно работает METHOD:PUBLISH.
             "METHOD:PUBLISH",
             "BEGIN:VEVENT",
             f"UID:{uid}",
             f"DTSTAMP:{dtstamp}",
-            f"CREATED:{created}",
-            f"LAST-MODIFIED:{last_modified}",
-            "SEQUENCE:0",
-            "STATUS:CONFIRMED",
             f"DTSTART:{dtstart}",
             f"DTEND:{dtend}",
             f"SUMMARY:{_escape_ics_text(summary)}",
