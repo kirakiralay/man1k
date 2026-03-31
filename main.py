@@ -50,7 +50,7 @@ async def handle_calendar_http(request: web.Request) -> web.Response:
     duration_qs = request.query.get("dur")
 
     if not date_iso or not time_hhmm:
-        return web.Response(status=400, text="Missing required query params: date, time")
+        return web.Response(status=400, text="Отсутствуют обязательные параметры: date, time")
 
     try:
         duration = int(duration_qs) if duration_qs is not None else REMINDER_DURATION_MINUTES
@@ -66,9 +66,9 @@ async def handle_calendar_http(request: web.Request) -> web.Response:
         )
     except Exception as e:
         # Вернём понятную ошибку в ответ, чтобы было видно причину 500.
-        return web.Response(status=500, text=f"Failed to create calendar event: {e}")
+        return web.Response(status=500, text=f"Не удалось создать событие календаря: {e}")
 
-    return web.Response(text=ics_text, content_type="text/calendar; charset=utf-8")
+    return web.Response(text=ics_text, content_type="text/calendar", charset="utf-8")
 
 
 @dp.message(CommandStart())
