@@ -29,8 +29,9 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
     last_modified = dtstamp
 
     # Floating timestamps: no "Z" suffix and no timezone identifiers.
-    dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
-    dtend = end_dt.strftime("%Y%m%dT%H%M%S")
+    # iOS часто лучше принимает время без секунд.
+    dtstart = start_dt.strftime("%Y%m%dT%H%M")
+    dtend = end_dt.strftime("%Y%m%dT%H%M")
 
     summary = f"Маникюр: {style}"
     description = "Напоминание от бота"
@@ -41,12 +42,15 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
             "VERSION:2.0",
             "PRODID:-//bot1//RU",
             "CALSCALE:GREGORIAN",
-            "METHOD:REQUEST",
+            # Для добавления события на iOS обычно работает METHOD:PUBLISH.
+            "METHOD:PUBLISH",
             "BEGIN:VEVENT",
             f"UID:{uid}",
             f"DTSTAMP:{dtstamp}",
             f"CREATED:{created}",
             f"LAST-MODIFIED:{last_modified}",
+            "SEQUENCE:0",
+            "STATUS:CONFIRMED",
             f"DTSTART:{dtstart}",
             f"DTEND:{dtend}",
             f"SUMMARY:{_escape_ics_text(summary)}",
