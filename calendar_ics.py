@@ -25,6 +25,8 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
 
     uid = f"{uuid.uuid4()}@bot1"
     dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    created = dtstamp
+    last_modified = dtstamp
 
     # Floating timestamps: no "Z" suffix and no timezone identifiers.
     dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
@@ -39,22 +41,16 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
             "VERSION:2.0",
             "PRODID:-//bot1//RU",
             "CALSCALE:GREGORIAN",
-            "METHOD:PUBLISH",
+            "METHOD:REQUEST",
             "BEGIN:VEVENT",
             f"UID:{uid}",
             f"DTSTAMP:{dtstamp}",
+            f"CREATED:{created}",
+            f"LAST-MODIFIED:{last_modified}",
             f"DTSTART:{dtstart}",
             f"DTEND:{dtend}",
             f"SUMMARY:{_escape_ics_text(summary)}",
             f"DESCRIPTION:{_escape_ics_text(description)}",
-            "CATEGORIES:Manicure",
-            "STATUS:CONFIRMED",
-            "TRANSP:OPAQUE",
-            "BEGIN:VALARM",
-            "TRIGGER:-PT0M",
-            "ACTION:DISPLAY",
-            f"DESCRIPTION:{_escape_ics_text(summary)}",
-            "END:VALARM",
             "END:VEVENT",
             "END:VCALENDAR",
         ]
