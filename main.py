@@ -106,9 +106,14 @@ async def handle_date(callback_query, state: FSMContext) -> None:
         await callback_query.answer("Сейчас выбирается другая стадия.", show_alert=False)
         return
 
-    parsed = CalendarDateCallback.unpack(callback_query.data)
-    iso = parsed.iso
-    selected = date.fromisoformat(iso)
+    try:
+        parsed = CalendarDateCallback.unpack(callback_query.data)
+        # В aiogram в зависимости от версии/типизации unpack может возвращать dict или объект.
+        iso = parsed["iso"] if isinstance(parsed, dict) else parsed.iso
+        selected = date.fromisoformat(iso)
+    except Exception:
+        await callback_query.answer("Не удалось распознать дату.", show_alert=False)
+        return
 
     data = await state.get_data()
     start_date = date.fromisoformat(data["start_date"])
@@ -131,8 +136,12 @@ async def handle_time(callback_query, state: FSMContext) -> None:
         await callback_query.answer("Сейчас выбирается другая стадия.", show_alert=False)
         return
 
-    parsed = TimeSlotCallback.unpack(callback_query.data)
-    time_hhmm = parsed.value
+    try:
+        parsed = TimeSlotCallback.unpack(callback_query.data)
+        time_hhmm = parsed["value"] if isinstance(parsed, dict) else parsed.value
+    except Exception:
+        await callback_query.answer("Не удалось распознать время.", show_alert=False)
+        return
 
     await state.update_data(time_hhmm=time_hhmm)
     await state.set_state(CreateReminder.confirm)
@@ -158,8 +167,12 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
         await callback_query.answer("Сейчас нельзя подтвердить.", show_alert=False)
         return
 
-    parsed = ConfirmCallback.unpack(callback_query.data)
-    action = parsed.action
+    try:
+        parsed = ConfirmCallback.unpack(callback_query.data)
+        action = parsed["action"] if isinstance(parsed, dict) else parsed.action
+    except Exception:
+        await callback_query.answer("Не удалось распознать действие.", show_alert=False)
+        return
 
     if action != "yes":
         await state.clear()
