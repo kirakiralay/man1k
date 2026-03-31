@@ -3,6 +3,7 @@ import os
 import tempfile
 from datetime import date
 
+import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -43,6 +44,36 @@ CREATE_BUTTON = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Создать запись")]],
     resize_keyboard=True,
 )
+
+
+async def send_document_with_mime_type(
+    *,
+    chat_id: int,
+    document_path: str,
+    caption: str,
+    mime_type: str,
+) -> None:
+    """
+    Aiogram не прокидывает параметр `mime_type` в sendDocument напрямую.
+    Поэтому делаем raw-вызов Telegram Bot API, чтобы iOS корректно
+    распознала MIME как text/calendar.
+    """
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+    filename = os.path.basename(document_path)
+
+    form = aiohttp.FormData()
+    form.add_field("chat_id", str(chat_id))
+    if caption:
+        form.add_field("caption", caption)
+    form.add_field("mime_type", mime_type)
+
+    with open(document_path, "rb") as f:
+        form.add_field("document", f, filename=filename, content_type=mime_type)
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=form) as resp:
+                payload = await resp.json(content_type=None)
+                if not payload.get("ok"):
+                    raise RuntimeError(payload.get("description") or "Telegram sendDocument failed")
 
 
 @dp.message(CommandStart())
@@ -218,9 +249,9 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
         with open(tmp_path, "w", encoding="utf-8") as f:
             f.write(ics_text)
 
-        await callback_query.bot.send_document(
+        await send_document_with_mime_type(
             chat_id=callback_query.message.chat.id,
-            document=FSInputFile(tmp_path),
+            document_path=tmp_path,
             caption=(
                 "Готово! Я сохранил запись в Google Sheets и сформировал событие для календаря.\n"
                 "Откройте вложение с расширением .ics и выберите «Добавить в календарь» (импорт на устройстве)."
