@@ -11,13 +11,13 @@
 
 1. Установите зависимости:
    - `pip install -r requirements.txt`
-2. Создайте файл `.env` (см. ` .env.example` ниже).
+2. Создайте файл `.env` (или задайте переменные окружения в Railway).
 
 ## Настройка Google Sheets
 
 1. Создайте Google Sheet.
 2. Создайте сервисный аккаунт в Google Cloud.
-3. Выгрузите ключ сервисного аккаунта в JSON-файл и укажите путь в `GOOGLE_SERVICE_ACCOUNT_FILE`.
+3. Вставьте JSON ключ сервисного аккаунта как строку в переменную `GOOGLE_SERVICE_ACCOUNT_JSON`.
 4. Откройте Google Sheet и предоставьте доступ сервисному аккаунту (email из `client_email` ключа).
 5. Укажите `GOOGLE_SPREADSHEET_ID` и (опционально) `GOOGLE_WORKSHEET_NAME`.
 
@@ -33,3 +33,4 @@
 - `/new` или кнопка `Создать запись` — создать запись
 - `/cancel` — отменить текущий процесс
 
+https://github.com/kirakiralay/man1k.git

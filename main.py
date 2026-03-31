@@ -12,7 +12,7 @@ from aiogram.types import FSInputFile, KeyboardButton, Message, ReplyKeyboardMar
 
 from config import (
     BOT_TOKEN,
-    GOOGLE_SERVICE_ACCOUNT_FILE,
+    GOOGLE_SERVICE_ACCOUNT_INFO,
     GOOGLE_SPREADSHEET_ID,
     GOOGLE_WORKSHEET_NAME,
     REMINDER_DURATION_MINUTES,
@@ -179,7 +179,7 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
     try:
         # 1) Save to Google Sheets
         await append_reminder_to_google_sheets(
-            service_account_file=GOOGLE_SERVICE_ACCOUNT_FILE,
+            service_account_info=GOOGLE_SERVICE_ACCOUNT_INFO,
             spreadsheet_id=GOOGLE_SPREADSHEET_ID,
             worksheet_name=GOOGLE_WORKSHEET_NAME,
             style=style,

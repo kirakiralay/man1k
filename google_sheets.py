@@ -1,6 +1,5 @@
 import asyncio
-from datetime import datetime
-from typing import Optional
+from typing import Any
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -8,7 +7,7 @@ from google.oauth2.service_account import Credentials
 
 def _append_row_sync(
     *,
-    service_account_file: str,
+    service_account_info: dict[str, Any],
     spreadsheet_id: str,
     worksheet_name: str,
     style: str,
@@ -16,7 +15,7 @@ def _append_row_sync(
     time_hhmm: str,
 ) -> None:
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_file(service_account_file, scopes=scopes)
+    creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
     client = gspread.authorize(creds)
 
     spreadsheet = client.open_by_key(spreadsheet_id)
@@ -36,7 +35,7 @@ def _append_row_sync(
 
 async def append_reminder_to_google_sheets(
     *,
-    service_account_file: str,
+    service_account_info: dict[str, Any],
     spreadsheet_id: str,
     worksheet_name: str,
     style: str,
@@ -45,7 +44,7 @@ async def append_reminder_to_google_sheets(
 ) -> None:
     await asyncio.to_thread(
         _append_row_sync,
-        service_account_file=service_account_file,
+        service_account_info=service_account_info,
         spreadsheet_id=spreadsheet_id,
         worksheet_name=worksheet_name,
         style=style,
