@@ -35,8 +35,13 @@ def _fold_ics_line(line: str, limit: int = 75) -> list[str]:
 
 def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minutes: int = 60) -> str:
     """
-    Creates a floating (local-time) ICS event suitable for "Add to calendar" import.
-    iOS requires METHOD:REQUEST (not PUBLISH) to show the "Add to Calendar" button.
+    Creates a floating (local-time) ICS event suitable for iOS "Add to calendar" import.
+
+    Key iOS behaviour:
+      - No METHOD property at all -> iOS treats the file as a plain import
+        and shows the "Add to Calendar" button.
+      - METHOD:PUBLISH -> view-only, no Add button.
+      - METHOD:REQUEST -> shown as an invite (with Organizer), no Add button either.
     """
     start_date = datetime.strptime(date_iso, "%Y-%m-%d").date()
     start_time = datetime.strptime(time_hhmm, "%H:%M").time()
@@ -47,6 +52,7 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
     uid = f"{uuid.uuid4()}@manicure-bot"
     dtstamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
 
+    # Floating timestamps (no Z, no TZID) — device local time.
     dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
     dtend = end_dt.strftime("%Y%m%dT%H%M%S")
 
@@ -58,17 +64,12 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
         "VERSION:2.0",
         "PRODID:-//Manicure Bot//Manicure Reminder//RU",
         "CALSCALE:GREGORIAN",
-        # FIX: METHOD:REQUEST заставляет iOS показывать кнопку "Добавить в календарь".
-        # METHOD:PUBLISH показывает только просмотр без кнопки сохранения.
-        "METHOD:REQUEST",
+        # Намеренно НЕТ строки METHOD — это заставляет iOS показать кнопку
+        # «Добавить в календарь» вместо интерфейса приглашения.
         "X-WR-CALNAME:Маникюр",
-        "X-WR-CALDESC:Записи маникюра",
         "BEGIN:VEVENT",
         f"UID:{uid}",
         f"DTSTAMP:{dtstamp}",
-        # FIX: ORGANIZER обязателен для METHOD:REQUEST на iOS.
-        # Используем фиктивный адрес — iOS его не показывает пользователю.
-        "ORGANIZER;CN=Manicure Bot:mailto:bot@manicure.local",
         "STATUS:CONFIRMED",
         "SEQUENCE:0",
         "TRANSP:OPAQUE",
@@ -89,5 +90,5 @@ def create_ics_text(*, style: str, date_iso: str, time_hhmm: str, duration_minut
     for line in raw_lines:
         folded_lines.extend(_fold_ics_line(line))
 
-    # Важно: финальный перенос строки CRLF (RFC 5545)
+    # RFC 5545: lines separated by CRLF, trailing CRLF required.
     return "\r\n".join(folded_lines) + "\r\n"
