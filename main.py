@@ -107,7 +107,7 @@ async def handle_date(callback_query, state: FSMContext) -> None:
         return
 
     parsed = CalendarDateCallback.unpack(callback_query.data)
-    iso = parsed["iso"]
+    iso = parsed.iso
     selected = date.fromisoformat(iso)
 
     data = await state.get_data()
@@ -132,7 +132,7 @@ async def handle_time(callback_query, state: FSMContext) -> None:
         return
 
     parsed = TimeSlotCallback.unpack(callback_query.data)
-    time_hhmm = parsed["value"]
+    time_hhmm = parsed.value
 
     await state.update_data(time_hhmm=time_hhmm)
     await state.set_state(CreateReminder.confirm)
@@ -159,7 +159,7 @@ async def handle_confirm(callback_query, state: FSMContext) -> None:
         return
 
     parsed = ConfirmCallback.unpack(callback_query.data)
-    action = parsed["action"]
+    action = parsed.action
 
     if action != "yes":
         await state.clear()
